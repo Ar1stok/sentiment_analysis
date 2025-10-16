@@ -135,7 +135,8 @@ class DataPreprocess:
             List of category names in training split.
         """
         ds = self._safe_remove_columns(self.dataset, ["index_id"])
-        # class_encode_column доступен в Dataset(Dict)
+        
+        # class_encode_column avaible in Dataset(Dict)
         encoded: DatasetDict = ds.class_encode_column("category")
         categories = encoded["train"].features["category"].names
         return encoded, categories
