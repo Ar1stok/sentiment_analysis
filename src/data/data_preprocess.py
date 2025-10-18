@@ -6,7 +6,7 @@ import shutil
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import spacy
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
 from transformers import AutoTokenizer
 
 
@@ -61,6 +61,29 @@ class DataPreprocess:
             except OSError as e:
                 logger.error("Failed to load spaCy model '%s': %s", self._spacy_model_name, e)
                 raise
+    
+    @staticmethod
+    def check_dataset(out_dir: str) -> DatasetDict | Dataset | None:
+        """
+        Tries to load Dataset from disk, returns None if loading failed.
+
+        Parameters
+        ----------
+        out_dir : str
+            Path to saved dataset dict.
+
+        Returns
+        -------
+        ds : Dataset or DatasetDict or None
+            Loaded dataset or None if not found/corrupted.
+        """
+        try:
+            ds = load_from_disk(out_dir)
+            logger.info("Dataset loaded from %s", out_dir)
+            return ds
+        except Exception:
+            logger.info("Dataset not found in %s", out_dir)
+            return None
 
     @staticmethod
     def delete_data(path: str = "./saved_dataset") -> None:
@@ -77,27 +100,6 @@ class DataPreprocess:
             logger.info("Removed directory: %s", path)
         else:
             logger.info("Path does not exist: %s", path)
-    
-    def _save_dataset(self, splits_xy: Dict[str, Tuple[List[str], List[int]]], subdir: str) -> None:
-        """
-        Save classic (X,y) splits as DatasetDict to disk.
-
-        Parameters
-        ----------
-        splits_xy : Dict[str, Tuple[List[str], List[int]]]
-            Mapping split->(texts, labels).
-        subdir : str
-            Subdirectory under self.save_dir to save into.
-        """
-        out_dir = os.path.join(self.save_dir, subdir)
-        os.makedirs(out_dir, exist_ok=True)
-
-        ds_splits: Dict[str, Dataset] = {}
-        for name, (X, y) in splits_xy.items():
-            ds_splits[name] = Dataset.from_dict({"text": X, "label": y})
-
-        DatasetDict(ds_splits).save_to_disk(out_dir)
-        logger.info("Saved dataset to %s", out_dir)
 
     def _safe_remove_columns(self, ds: Dataset | DatasetDict, cols: Iterable[str]) -> Dataset | DatasetDict:
         """
@@ -175,7 +177,7 @@ class DataPreprocess:
         self,
         save: bool = False,
         subdir: str = "logreg",
-    ) -> Tuple[Tuple[List[str], List[int]], Tuple[List[str], List[int]], Tuple[List[str], List[int]], List[str]]:
+    ) -> Tuple[DatasetDict, List[str]]:
         """
         Prepare lemmatized texts and integer labels for classical ML (e.g., Logistic Regression).
 
@@ -197,18 +199,26 @@ class DataPreprocess:
         categories : List[str]
             Label names in order of encoding.
         """
+        out_dir = os.path.join(self.save_dir, subdir)
+        dataset_dict = self.check_dataset(out_dir)
+        if dataset_dict:
+            return dataset_dict
+
         encoded_splits, categories = self._encode_data()
 
-        processed: Dict[str, Tuple[List[str], List[int]]] = {}
-        for split in ["train", "validation", "test"]:
-            X = self._normalize_texts(encoded_splits[split]["text"])
-            y = list(encoded_splits[split]["category"])
-            processed[split] = (X, y)
+        dataset_dict = DatasetDict({
+            split: Dataset.from_dict({
+                "text": self._normalize_texts(encoded_splits[split]["text"]),
+                "label": list(encoded_splits[split]["category"])
+            })
+            for split in ["train", "validation", "test"]
+        })
 
         if save:
-            self._save_dataset(processed, subdir=subdir)
+            dataset_dict.save_to_disk(out_dir)
+            logger.info("Saved dataset to %s", out_dir)
 
-        return processed["train"], processed["validation"], processed["test"], categories
+        return dataset_dict, categories
 
     @staticmethod
     def _prepare_message(texts: List[str], categories: List[str]) -> List[Dict[str, str]]:
@@ -265,14 +275,17 @@ class DataPreprocess:
         Dataset
             Dataset with 'llm_message' column.
         """
+        out_dir = os.path.join(self.save_dir, subdir)
+        ds = self.check_dataset(out_dir)
+        if ds:
+            return ds
+
         encoded_splits, categories = self._encode_data()
         ds = encoded_splits[split]
         llm_messages = self._prepare_message(list(ds["text"]), categories)
         ds = ds.add_column(name="llm_message", column=llm_messages)
 
         if save:
-            out_dir = os.path.join(self.save_dir, subdir)
-            os.makedirs(out_dir, exist_ok=True)
             ds.flatten_indices().save_to_disk(out_dir)
             logger.info("Saved Qwen split to %s", out_dir)
 
@@ -306,6 +319,11 @@ class DataPreprocess:
         labels : List[str]
             Category label names (order consistent with encoding).
         """
+        out_dir = os.path.join(self.save_dir, subdir)
+        tokenized = self.check_dataset(out_dir)
+        if tokenized:
+            return tokenized
+
         tokenizer = AutoTokenizer.from_pretrained(model_name)
 
         def tokenize_function(examples: Dict[str, List[str]]) -> Dict[str, List[int]]:
