@@ -9,9 +9,12 @@ import spacy
 from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
 from transformers import AutoTokenizer
 
-
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 class DataPreprocess:
@@ -190,12 +193,9 @@ class DataPreprocess:
 
         Returns
         -------
-        train : Tuple[List[str], List[int]]
-            (X_train, y_train).
-        valid : Tuple[List[str], List[int]]
-            (X_valid, y_valid).
-        test : Tuple[List[str], List[int]]
-            (X_test, y_test).
+        dataset_dict : DatasetDict
+            Prepared dataset for logreg.
+            
         categories : List[str]
             Label names in order of encoding.
         """
@@ -218,7 +218,7 @@ class DataPreprocess:
             dataset_dict.save_to_disk(out_dir)
             logger.info("Saved dataset to %s", out_dir)
 
-        return dataset_dict, categories
+        return dataset_dict
 
     @staticmethod
     def _prepare_message(texts: List[str], categories: List[str]) -> List[Dict[str, str]]:
@@ -356,4 +356,4 @@ class DataPreprocess:
             tokenized.save_to_disk(out_dir)
             logger.info("Saved tokenized dataset to %s", out_dir)
 
-        return tokenized, labels
+        return tokenized
