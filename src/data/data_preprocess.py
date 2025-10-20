@@ -43,17 +43,34 @@ class DataPreprocess:
         self,
         dataset_name: str,
         dataset_language: Optional[str] = None,
+        preload_dataset: bool = True,
         save_dir: str = "./saved_dataset",
         load_spacy: bool = False,
         spacy_model: str = "ru_core_news_sm",
     ) -> None:
-        self.dataset: DatasetDict = load_dataset(dataset_name, dataset_language)
+        self.dataset: Optional["DatasetDict | Dataset"] = None
         self.save_dir = save_dir
         self._nlp: Optional["spacy.Language"] = None
         self._spacy_model_name = spacy_model
 
+        if preload_dataset:
+            self._ensure_dataset(dataset_name, dataset_language)
         if load_spacy:
             self._ensure_spacy()
+
+    def _ensure_dataset(
+            self,
+            dataset_name: str,
+            dataset_language: Optional[str] = None,
+        ) -> None:
+        """Lazily load dataset if not loaded."""
+        if self.dataset is None:
+            try:
+                self.dataset = load_dataset(dataset_name, dataset_language)
+                logger.info("Dataset '%s' loaded.", dataset_name)
+            except OSError as e:
+                logger.error("Failed to load dataset '%s': %s", dataset_name, e)
+                raise
 
     def _ensure_spacy(self) -> None:
         """Lazily load spaCy model if not loaded."""
@@ -242,15 +259,15 @@ class DataPreprocess:
             f"которая лучше всего соответствует содержанию: {', '.join(categories)}.\n"
             "Верните только название подходящей категории.\n"
         )
-        messages: List[Dict[str, str]] = []
+        messages: List[List[Dict[str, str]]] = []
         for msg in texts:
             messages.append(
-                {
+                [{
                     "role": "user",
-                    "content": f"{prompt_head}Текст: {msg}",
-                }
+                    "content": f"{prompt_head} Текст: {msg}",
+                }]
             )
-        return messages
+        return {'llm_messages': messages}
 
     def process_qwen2_7b(
         self,
@@ -273,7 +290,7 @@ class DataPreprocess:
         Returns
         -------
         Dataset
-            Dataset with 'llm_message' column.
+            Dataset with 'llm_messages' column.
         """
         out_dir = os.path.join(self.save_dir, subdir)
         ds = self.check_dataset(out_dir)
@@ -282,8 +299,7 @@ class DataPreprocess:
 
         encoded_splits, categories = self._encode_data()
         ds = encoded_splits[split]
-        llm_messages = self._prepare_message(list(ds["text"]), categories)
-        ds = ds.add_column(name="llm_message", column=llm_messages)
+        ds = ds.add_column(name="llm_messages", column=self._prepare_message(ds["text"], categories)["llm_messages"])
 
         if save:
             ds.flatten_indices().save_to_disk(out_dir)

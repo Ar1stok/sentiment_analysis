@@ -6,6 +6,7 @@ import pandas as pd
 from datasets import Dataset
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report
 from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import Pipeline
 
@@ -19,14 +20,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def trainer(
+def lr_trainer(
     dataset: Dataset,
     param_grid: Optional[dict[str, Any]] = None,
     max_iter: int = 5000,
     setup_mode: bool = False,
     save_model: bool = False,
     filename: str = "logreg.pkl"
-) -> tuple[pd.DataFrame, float, dict]:
+) -> tuple[pd.DataFrame, float, dict, Pipeline] | Pipeline:
     """
     Perform logistic regression model selection using grid search and TF-IDF pipeline.
 
@@ -124,3 +125,32 @@ def trainer(
         return all_res, LR_search.best_score_, LR_search.best_params_, LR_search.best_estimator_
     else:
         return LR_search.best_estimator_
+    
+
+def lr_evaluate(
+        estimator: Pipeline,
+        dataset: Dataset
+    ) -> str | dict:
+    """
+    Evaluate the model (estimator) on the test or validation dataset
+
+    Parameters
+    ----------
+    estimator: Pipeline
+        The estimator you want to test 
+    dataset: Dataset
+        Test HuggingFace Dataset object with 'text' and 'label' columns.
+    
+    Returns
+    -------
+    report : str | dict
+        Return classification report from sklearn.metrics
+    """
+
+    texts = list(dataset['text'])
+    labels = list(dataset['label'])
+
+    test_pred = estimator.predict(texts)
+    report = classification_report(labels, test_pred)
+    
+    return report
