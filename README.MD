@@ -14,7 +14,6 @@ The following models are evaluated:
     - Goal: Baseline performance with basic features (TF-IDF)
     - Evaluation: Classification accuracy/metrics
 
-> Result <ins>for now</ins>: `f1-score: 0.67`
 
 2. Qwen2-7B (LLM)
     - Form prompt:
@@ -27,20 +26,18 @@ The following models are evaluated:
         ```
     - Evaluation: Compare by F1-Score (using string matching and convert to num)
 
-> Result <ins>for now</ins>: `f1-score: 0.83`
 
 3. ruBERT (Transformer)
     - Preprocessing: PreUses HuggingFace tokenizer 
     - Train: Model fine-tuned for classification
     - Evaluation: Final results compared to baseline and LLM (F1-Score)
 
-> Result <ins>for now</ins>: `f1-score: 0.90`
 
 Модель                   |  Стек реализации                      |  F1-score  |  Особенности                                                       
 -------------------------|---------------------------------------|------------|--------------------------------------------------------------------
-Logistic Regression      |  TF-IDF + LogisticRegression, scikit  |  0.67      |  Классический ML (baseline), низкая точность на сложных текстах    
-Qwen2-7B-Instruct (LLM)  |  Hugging Face, llama.cpp              |  0.83      |  Современный LLM, требует много ресурсов, чувствителен к параметрам
-ruBERT (Transformer)     |  DeepPavlov/rubert-base-cased         |  0.90      |  Предобученная модель, лучший результат, высокая устойчивость
+Logistic Regression      |  TF-IDF + LogisticRegression          |  0.67      |  Классический ML (baseline), низкая точность    
+Qwen2-7B-Instruct (LLM)  |  HuggingFace                          |  0.83      |  Современный LLM, требует много ресурсов, чувствителен к запросам
+ruBERT (Transformer)     |  DeepPavlov/rubert-base-cased         |  0.90      |  Предобученная модель, лучший результат
 
 > [!NOTE]
 > Something might change in the future
