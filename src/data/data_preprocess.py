@@ -313,7 +313,7 @@ class DataPreprocess:
         model_name: str = "DeepPavlov/rubert-base-cased",
         max_length: int = 512,
         subdir: str = "bert",
-    ) -> Tuple[DatasetDict, List[str]]:
+    ) -> DatasetDict:
         """
         Tokenize dataset for ruBERT fine-tuning.
 
@@ -332,8 +332,6 @@ class DataPreprocess:
         -------
         tokenized : DatasetDict
             Tokenized dataset with 'labels' column.
-        labels : List[str]
-            Category label names (order consistent with encoding).
         """
         out_dir = os.path.join(self.save_dir, subdir)
         tokenized = self.check_dataset(out_dir)
@@ -353,7 +351,6 @@ class DataPreprocess:
 
         # Encode labels and remove technical columns safely
         encoded: DatasetDict = self._safe_remove_columns(self.dataset, ["index_id"]).class_encode_column("category")
-        labels = encoded["train"].features["category"].names
 
         tokenized = encoded.map(
             tokenize_function,
