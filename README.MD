@@ -36,6 +36,12 @@ The following models are evaluated:
 
 > Result <ins>for now</ins>: `f1-score: 0.90`
 
+Модель                   |  Стек реализации                      |  F1-score  |  Особенности                                                       
+-------------------------|---------------------------------------|------------|--------------------------------------------------------------------
+Logistic Regression      |  TF-IDF + LogisticRegression, scikit  |  0.67      |  Классический ML (baseline), низкая точность на сложных текстах    
+Qwen2-7B-Instruct (LLM)  |  Hugging Face, llama.cpp              |  0.83      |  Современный LLM, требует много ресурсов, чувствителен к параметрам
+ruBERT (Transformer)     |  DeepPavlov/rubert-base-cased         |  0.90      |  Предобученная модель, лучший результат, высокая устойчивость
+
 > [!NOTE]
-> See the basic results /notebooks, *Right Version* in process
+> Something might change in the future
 
